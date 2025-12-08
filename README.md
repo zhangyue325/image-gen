@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Ads Assets Generator
 
-## Getting Started
+Generate polished advertising creatives from a single product photo. The web interface lets merchandisers choose from multiple art directions, select an aspect ratio, and instantly prompt Gemini to produce style-specific ads.
 
-First, run the development server:
+## Project layout
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- `src/app` &mdash; Next.js frontend that provides the creative brief interface and displays generated results.
+- `backend` &mdash; FastAPI service that wraps the Gemini image generation call.
+- `backend/img` &mdash; Test fixtures used by the original notebooks (optional for the web flow).
+
+## Prerequisites
+
+- Node.js 18+ and npm
+- Python 3.10+
+- Google AI Studio API key with access to `gemini-2.5-flash-image`
+
+## Backend setup
+
+```powershell
+cd backend
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create an `.env` file or export the key before running the server:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```powershell
+$env:GOOGLE_API_KEY="YOUR_KEY"
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Start the API (port 8000 by default):
 
-## Learn More
+```powershell
+uvicorn app:app --reload --port 8000
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Frontend setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Install dependencies once in the project root:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```powershell
+npm install
+```
 
-## Deploy on Vercel
+If your backend is not running on `http://localhost:8000`, set the URL explicitly:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```powershell
+$env:NEXT_PUBLIC_API_BASE_URL="http://localhost:8000"
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Launch the Next.js dev server with Turbopack:
+
+```powershell
+npm run dev
+```
+
+Visit the printed URL (typically `http://localhost:3000`). The app will proxy API calls to the configured backend.
+
+## User flow
+
+1. **Select styles** &mdash; four presets (`product w CTA`, `model from bottom calf`, `comfort lifestyle`, `editorial power fashion`) are pre-selected but can be toggled individually.
+2. **Choose an aspect ratio** from common ad formats (square, portrait, landscape, vertical).
+3. **Upload a product image** in PNG, JPG, or WebP format.
+4. **Generate** &mdash; a single click sends the selected styles to the backend, which makes a Gemini call per style and streams the rendered creatives back to the UI.
+5. **Iterate per style** &mdash; once results appear, each card exposes a dedicated “Regenerate” action so you can fine-tune individual directions without re-running the full batch.
+
+Downloads are available directly from each card, making it easy to collect the generated assets for downstream workflows.
