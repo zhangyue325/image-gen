@@ -1,6 +1,0 @@
-pillow
-rembg
-openai
-google-genai
-fastapi
-uvicorn[standard]
