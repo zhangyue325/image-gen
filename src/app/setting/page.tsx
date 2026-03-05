@@ -1,59 +1,65 @@
 ﻿"use client";
 
-import { useState } from "react";
-import { useCreativeStore } from "../lib/creative-store";
+import { useEffect, useState } from "react";
+import { createClient } from "../../../lib/supabase/client";
 
 export default function SettingPage() {
-  const { settings, setSettings, resetLocalData } = useCreativeStore();
-  const [status, setStatus] = useState<string | null>(null);
+  const supabase = createClient();
 
-  const handleReset = () => {
-    resetLocalData();
-    setStatus("Local data reset.");
-  };
+  const [setting, setSetting] = useState<any>(null);
+  const [prompt, setPrompt] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const { data, error } = await supabase
+        .from("setting")
+        .select("id,user_name,main_prompt,logo")
+        .eq("user_name", "Pazzion")
+        .single();
+
+      if (!error && data) {
+        setSetting(data);
+        setPrompt(data.main_prompt);
+      }
+
+      setLoading(false);
+    }
+
+    load();
+  }, []);
+
+  async function save() {
+    if (!setting) return;
+
+    await supabase
+      .from("setting")
+      .update({ main_prompt: prompt })
+      .eq("id", setting.id);
+
+    alert("Saved");
+  }
+
+  if (loading) return <div className="p-6">Loading...</div>;
 
   return (
     <section className="surface-card p-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">Core Settings</h2>
-        <p className="text-sm text-[color:var(--ink-muted)]">
-          Main prompt and local storage management.
-        </p>
-      </div>
-
       <div className="flex flex-col gap-3">
         <label className="text-sm font-medium">Main prompt</label>
+
         <textarea
-          className="min-h-[120px] rounded-2xl border border-[color:var(--ring)] bg-[color:var(--surface-2)] p-3 text-sm"
-          value={settings.mainPrompt}
-          onChange={(e) =>
-            setSettings((prev) => ({
-              ...prev,
-              mainPrompt: e.target.value,
-            }))
-          }
+          className="min-h-[250px] rounded-2xl border p-3 text-sm"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
         />
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <button
-          className="rounded-full border border-[color:var(--ring)] px-5 py-2 text-sm font-semibold"
-          onClick={handleReset}
-        >
-          Reset local data
-        </button>
-      </div>
+      <label className="text-sm font-medium">Logo</label>
+      <img src={setting.logo} alt="logo" style={{ width: 200 }} />
 
-      <div className="rounded-2xl border border-dashed border-[color:var(--ring)] p-4 text-xs text-[color:var(--ink-muted)]">
-        API key is read from server environment `GEMINI_API_KEY`. Generated files are saved to
-        `public/generated`.
-      </div>
-
-      {status && (
-        <div className="rounded-2xl border border-[color:var(--ring)] bg-white p-4 text-sm text-[color:var(--ink-muted)]">
-          {status}
-        </div>
-      )}
+      <button onClick={save} className="border rounded-xl px-4 py-2 w-fit">
+        Save
+      </button>
     </section>
   );
 }
