@@ -1,35 +1,26 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-const DRAFT_KEY = "generate:draft";
-
-type DraftPayload = {
-  prompt?: string;
-  ratio?: string;
-  size?: string;
-  templateId?: number;
-};
-
-type UploadItem = {
-  id: string;
-  file: File;
-  name: string;
-};
-
-const RATIO_OPTIONS = ["1:1", "2:3", "3:2", "4:5", "5:4", "9:16", "16:9", "21:9"] as const;
-const RESOLUTION_OPTIONS = ["1K", "2K", "3K"] as const;
-
-function fileNameWithoutExt(filename: string) {
-  const index = filename.lastIndexOf(".");
-  return index > 0 ? filename.slice(0, index) : filename;
-}
+import GeneratedImagePanel from "./generated-image-panel";
+import ReferenceImageList from "./reference-image-list";
+import type { DraftPayload, ReferenceImagePayload, UploadItem } from "./types";
+import { fileNameWithoutExt, fileToBase64 } from "./utils";
 
 export default function GenerationPage() {
+  const DRAFT_KEY = "generate:draft";
+
+  const RATIO_OPTIONS = ["1:1", "2:3", "3:2", "4:5", "5:4", "9:16", "16:9", "21:9"] as const;
+  const RESOLUTION_OPTIONS = ["1K", "2K", "3K"] as const;
+
   const [prompt, setPrompt] = useState("");
   const [ratio, setRatio] = useState<string>("9:16");
   const [resolution, setResolution] = useState<string>("1K");
   const [images, setImages] = useState<UploadItem[]>([]);
+  const [resultImageUrl, setResultImageUrl] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [fineTuningPrompt, setFineTuningPrompt] = useState("");
+  const [fineTuningLoading, setFineTuningLoading] = useState(false);
 
   useEffect(() => {
     const raw = sessionStorage.getItem(DRAFT_KEY);
@@ -67,17 +58,90 @@ export default function GenerationPage() {
     setImages((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const onGenerate = () => {
-    console.log({
-      prompt,
-      ratio,
-      resolution,
-      images: images.map((item) => ({
-        name: item.name,
-        filename: item.file.name,
-        type: item.file.type,
-      })),
-    });
+  const onGenerate = async () => {
+    setLoading(true);
+    setError("");
+    setResultImageUrl("");
+
+    try {
+      const referenceImages: ReferenceImagePayload[] = await Promise.all(
+        images.map(async (item) => ({
+          name: item.name,
+          mimeType: item.file.type || "image/png",
+          data: await fileToBase64(item.file),
+        }))
+      );
+
+      const res = await fetch("/api/generate_image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt,
+          ratio,
+          resolution,
+          referenceImages,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Generation failed");
+        return;
+      }
+
+      setResultImageUrl(`data:image/png;base64,${data.imageBase64}`);
+    } catch {
+      setError("Generation failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onDownload = () => {
+    if (!resultImageUrl) return;
+    const link = document.createElement("a");
+    link.href = resultImageUrl;
+    link.download = "generated-image.png";
+    link.click();
+  };
+
+  const onFineTune = async () => {
+    if (!resultImageUrl || !fineTuningPrompt.trim()) return;
+
+    const [header, data = ""] = resultImageUrl.split(",");
+    const mimeMatch = header.match(/data:(.*?);base64/);
+    const imageMimeType = mimeMatch?.[1] || "image/png";
+
+    setFineTuningLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/fine_tune_image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fineTuningPrompt,
+          imageBase64: data,
+          imageMimeType,
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok) {
+        setError(result.error ?? "Fine-tuning failed");
+        return;
+      }
+
+      setResultImageUrl(`data:image/png;base64,${result.imageBase64}`);
+    } catch {
+      setError("Fine-tuning failed");
+    } finally {
+      setFineTuningLoading(false);
+    }
   };
 
   return (
@@ -140,52 +204,33 @@ export default function GenerationPage() {
       </div>
 
       <div className="flex flex-col gap-3">
-        <h3 className="text-sm font-medium">Reference Image list</h3>
-        {images.length === 0 ? (
-          <div className="rounded-xl border border-dashed p-4 text-sm">
-            No images uploaded yet.
-          </div>
-        ) : (
-          <div className="grid gap-3">
-            {images.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-xl border  bg-white p-3 grid gap-3 md:grid-cols-[1fr_220px_100px]"
-              >
-                <div className="text-sm">
-                  <div className="font-medium">{item.file.name}</div>
-                  <div className="text-xs ">{item.file.type || "image"}</div>
-                </div>
-
-                <input
-                  value={item.name}
-                  onChange={(e) => onChangeImageName(item.id, e.target.value)}
-                  placeholder="Image name"
-                  className="rounded-lg border px-3 py-2 text-sm"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => onRemoveImage(item.id)}
-                  className="rounded-lg border px-3 py-2 text-sm font-medium"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
+        <ReferenceImageList
+          images={images}
+          onChangeImageName={onChangeImageName}
+          onRemoveImage={onRemoveImage}
+        />
       </div>
 
       <div className="flex justify-end">
         <button
           type="button"
           onClick={onGenerate}
+          disabled={loading || !prompt.trim()}
           className="rounded-xl bg-black px-5 py-2 text-sm font-semibold text-white"
         >
-          Generate
+          {loading ? "Generating..." : "Generate"}
         </button>
       </div>
+
+      {error ? <pre className="text-sm text-red-600">{error}</pre> : null}
+      <GeneratedImagePanel
+        resultImageUrl={resultImageUrl}
+        fineTuningPrompt={fineTuningPrompt}
+        fineTuningLoading={fineTuningLoading}
+        onDownload={onDownload}
+        onFineTune={onFineTune}
+        onChangeFineTuningPrompt={setFineTuningPrompt}
+      />
     </section>
   );
 }

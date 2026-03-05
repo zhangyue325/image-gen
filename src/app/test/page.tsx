@@ -1,21 +1,54 @@
-import { createClient } from "../../../lib/supabase/server";
+"use client";
 
-export default async function Test() {
-  const supabase = await createClient();
+import { useState } from "react";
 
-  const { data: template, error: templateError } = await supabase
-    .from("template")
-    .select("id,purpose,prompt,descriptive_image");
+export default function Page() {
+  const [prompt, setPrompt] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  if (templateError) {
-    return <pre>{JSON.stringify({ templateError }, null, 2)}</pre>;
+  async function handleGenerate() {
+    setLoading(true);
+    setError("");
+    setImageUrl("");
+
+    const res = await fetch("/api/generate_image", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prompt }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error ?? "Failed");
+      setLoading(false);
+      return;
+    }
+
+    setImageUrl(`data:image/png;base64,${data.imageBase64}`);
+    setLoading(false);
   }
 
-  console.log(template);
-
   return (
-    <div>
-      <h2>template: {template?.length ?? 0}</h2>
+    <div style={{ padding: 40 }}>
+      <textarea
+        value={prompt}
+        onChange={(e) => setPrompt(e.target.value)}
+        placeholder="Enter prompt"
+      />
+
+      <br />
+
+      <button onClick={handleGenerate} disabled={loading || !prompt.trim()}>
+        {loading ? "Generating..." : "Generate"}
+      </button>
+
+      {error ? <pre>{error}</pre> : null}
+      {imageUrl ? <img src={imageUrl} alt="Generated" style={{ marginTop: 16, maxWidth: "100%" }} /> : null}
     </div>
   );
 }

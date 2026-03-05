@@ -1,0 +1,90 @@
+import { GoogleGenAI } from "@google/genai";
+import { createClient } from "../../../../lib/supabase/server";
+
+type FineTunePayload = {
+  fineTuningPrompt?: string;
+  imageBase64?: string;
+  imageMimeType?: string;
+};
+
+export async function POST(req: Request) {
+  try {
+    const { fineTuningPrompt, imageBase64, imageMimeType } = (await req.json()) as FineTunePayload;
+
+    if (!fineTuningPrompt || typeof fineTuningPrompt !== "string") {
+      return Response.json({ error: "Missing fineTuningPrompt" }, { status: 400 });
+    }
+
+    if (!imageBase64 || typeof imageBase64 !== "string") {
+      return Response.json({ error: "Missing imageBase64" }, { status: 400 });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return Response.json({ error: "Missing GEMINI_API_KEY" }, { status: 500 });
+    }
+
+    const supabase = await createClient();
+    const { data: setting, error: settingError } = await supabase
+      .from("setting")
+      .select("main_prompt,logo")
+      .eq("user_name", "Pazzion")
+      .single();
+
+    if (settingError) {
+      return Response.json({ error: `Failed to read setting: ${settingError.message}` }, { status: 500 });
+    }
+
+    const fullPrompt = [setting?.main_prompt, fineTuningPrompt]
+      .filter(Boolean)
+      .join("\n\n");
+
+    const contentParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
+      { text: fullPrompt },
+      {
+        inlineData: {
+          mimeType: imageMimeType || "image/png",
+          data: imageBase64,
+        },
+      },
+    ];
+
+    if (setting?.logo) {
+      const logoRes = await fetch(setting.logo);
+      if (!logoRes.ok) {
+        return Response.json({ error: "Failed to fetch logo image from setting.logo" }, { status: 500 });
+      }
+
+      const logoMimeType = logoRes.headers.get("content-type") || "image/png";
+      const logoBuffer = await logoRes.arrayBuffer();
+      const logoBase64 = Buffer.from(logoBuffer).toString("base64");
+      contentParts.push({
+        inlineData: {
+          mimeType: logoMimeType,
+          data: logoBase64,
+        },
+      });
+    }
+
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-image",
+      contents: [{ role: "user", parts: contentParts }],
+    });
+
+    const resultParts = response.candidates?.[0]?.content?.parts ?? [];
+    const fineTunedImageBase64 = resultParts.find((part) => part.inlineData?.data)?.inlineData?.data;
+
+    if (!fineTunedImageBase64) {
+      return Response.json({ error: "No image generated" }, { status: 502 });
+    }
+
+    return Response.json({ imageBase64: fineTunedImageBase64 });
+  } catch (error) {
+    console.error("fine_tune_image failed:", error);
+    const err = error as { message?: string; status?: number };
+    return Response.json(
+      { error: err.message ?? "Fine-tuning failed" },
+      { status: err.status ?? 500 }
+    );
+  }
+}
