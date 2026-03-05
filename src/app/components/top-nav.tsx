@@ -15,10 +15,7 @@ export default function TopNav() {
   return (
     <nav className="surface-card px-5 py-3 flex flex-wrap items-center gap-3 sticky top-0 z-50">
       <div className="flex items-center gap-3">
-        <span className="rounded-full bg-black px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white">
-          Logo
-        </span>
-        <span className="text-sm font-semibold">Gemini Creative Lab</span>
+        <span className="text-sm font-semibold">Gemini Creative Studio</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 md:ml-6">

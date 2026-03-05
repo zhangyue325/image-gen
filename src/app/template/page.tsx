@@ -1,19 +1,21 @@
-import Link from "next/link";
 import { createClient } from "../../../lib/supabase/server";
 import TemplateCtaButton from "./templateDesignButton";
+import CreateTemplateCard from "./createTemplateCard";
 
 export default async function TemplatePage() {
   const supabase = await createClient();
 
   const { data: templates, error } = await supabase
     .from("template")
-    .select("id,prompt,descriptive_image")
+    .select("id,purpose,prompt,descriptive_image")
     .order("id");
 
   if (error) return <pre>{JSON.stringify(error, null, 2)}</pre>;
 
   return (
     <section className="p-6 grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-5">
+      <CreateTemplateCard />
+
       {templates?.map((t) => (
         <div key={t.id} className="border rounded-xl p-3 flex flex-col gap-2">
           {t.descriptive_image && (
@@ -27,6 +29,7 @@ export default async function TemplatePage() {
           )}
 
           <h3 className="font-medium text-sm">Template {t.id}</h3>
+          <p className="text-xs text-gray-500">{t.purpose}</p>
           <p className="text-xs text-gray-600 line-clamp-3">{t.prompt}</p>
 
           <TemplateCtaButton

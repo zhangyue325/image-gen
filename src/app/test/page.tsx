@@ -5,7 +5,7 @@ export default async function Test() {
 
   const { data: template, error: templateError } = await supabase
     .from("template")
-    .select("id,purpose,prompt,sample_image");
+    .select("id,purpose,prompt,descriptive_image");
 
   if (templateError) {
     return <pre>{JSON.stringify({ templateError }, null, 2)}</pre>;
