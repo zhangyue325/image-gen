@@ -1,6 +1,7 @@
 import { createClient } from "../../../lib/supabase/server";
 import TemplateCtaButton from "./templateDesignButton";
 import CreateTemplateCard from "./createTemplateCard";
+import DeleteTemplateButton from "./deleteTemplateButton";
 
 export default async function TemplatePage() {
   const supabase = await createClient();
@@ -8,6 +9,7 @@ export default async function TemplatePage() {
   const { data: templates, error } = await supabase
     .from("template")
     .select("id,purpose,prompt,descriptive_image")
+    .or("deleted.is.null,deleted.eq.false")
     .order("id");
 
   if (error) return <pre>{JSON.stringify(error, null, 2)}</pre>;
@@ -17,7 +19,8 @@ export default async function TemplatePage() {
       <CreateTemplateCard />
 
       {templates?.map((t) => (
-        <div key={t.id} className="border rounded-xl p-3 flex flex-col gap-2">
+        <div key={t.id} className="relative border rounded-xl p-3 flex flex-col gap-2">
+          <DeleteTemplateButton templateId={t.id} />
           {t.descriptive_image && (
             <div className="w-full h-56 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden">
               <img

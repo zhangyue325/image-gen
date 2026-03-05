@@ -78,6 +78,16 @@ export default function CreateTemplateCard() {
         placeholder="Template prompt..."
       />
 
+      <select
+        value={purpose}
+        onChange={(e) => setPurpose(e.target.value)}
+        className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
+      >
+        <option value="9:16">9:16</option>
+        <option value="1:1">1:1</option>
+        <option value="16:9">16:9</option>
+      </select>
+
       <input
         type="file"
         accept="image/*"
