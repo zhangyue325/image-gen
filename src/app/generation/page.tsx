@@ -14,12 +14,8 @@ export default function GenerationPage() {
     if (!raw) return;
 
     try {
-      const draft = JSON.parse(raw) as DraftPayload;
-      if (draft.type === "video") {
-        setMode("video");
-      } else {
-        setMode("image");
-      }
+      JSON.parse(raw) as DraftPayload;
+      setMode("image");
     } catch {
       // ignore invalid draft
     }
@@ -41,12 +37,12 @@ export default function GenerationPage() {
         </button>
         <button
           type="button"
-          onClick={() => setMode("video")}
+          disabled
           className={`relative rounded-xl px-4 py-2 text-sm font-semibold ${
             mode === "video"
               ? "bg-black text-white"
               : "border border-(--ring) bg-white text-[color:var(--ink-muted)]"
-          }`}
+          } opacity-60 cursor-not-allowed`}
         >
           Video
           <span className="absolute -right-2 -top-2 rounded-full border border-amber-200 bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none text-amber-900">
