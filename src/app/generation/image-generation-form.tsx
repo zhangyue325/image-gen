@@ -27,6 +27,7 @@ export default function ImageGenerationForm() {
   const [images, setImages] = useState<UploadItem[]>([]);
   const [resultImageUrls, setResultImageUrls] = useState<string[]>([]);
   const [fineTuningPrompts, setFineTuningPrompts] = useState<string[]>([]);
+  const [resultAiText, setResultAiText] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [refinePromptLoading, setRefinePromptLoading] = useState(false);
@@ -142,6 +143,7 @@ export default function ImageGenerationForm() {
     setError("");
     setResultImageUrls([]);
     setFineTuningPrompts([]);
+    setResultAiText("");
 
     try {
       const referenceImages = await buildReferenceImages();
@@ -181,6 +183,13 @@ export default function ImageGenerationForm() {
 
       setResultImageUrls(urls);
       setFineTuningPrompts(Array.from({ length: urls.length }, () => ""));
+      setResultAiText(
+        typeof data.aiText === "string"
+          ? data.aiText
+          : Array.isArray(data.aiTextList)
+            ? String(data.aiTextList[0] || "")
+            : ""
+      );
     } catch {
       setError("Generation failed");
     } finally {
@@ -387,6 +396,12 @@ export default function ImageGenerationForm() {
       </div>
 
       {error ? <pre className="text-sm text-red-600">{error}</pre> : null}
+      {resultAiText ? (
+        <div className="rounded-xl border bg-white p-3">
+          <h3 className="text-sm font-medium">AI text output</h3>
+          <pre className="mt-2 whitespace-pre-wrap text-sm">{resultAiText}</pre>
+        </div>
+      ) : null}
       <GeneratedImagePanel
         resultImageUrls={resultImageUrls}
         fineTuningPrompts={fineTuningPrompts}

@@ -94,11 +94,26 @@ export async function POST(req: Request) {
       });
 
       const parts = response.candidates?.[0]?.content?.parts ?? [];
-      return parts.find((part) => part.inlineData?.data)?.inlineData?.data ?? null;
+      const imageBase64 = parts.find((part) => part.inlineData?.data)?.inlineData?.data ?? null;
+      const textOutput = parts
+        .map((part) => part.text?.trim())
+        .filter((value): value is string => Boolean(value))
+        .join("\n")
+        .trim();
+
+      return {
+        imageBase64,
+        textOutput: textOutput || null,
+      };
     });
 
     const results = await Promise.all(tasks);
-    const imageBase64List = results.filter((item): item is string => Boolean(item));
+    const imageBase64List = results
+      .map((item) => item.imageBase64)
+      .filter((item): item is string => Boolean(item));
+    const aiTextList = results
+      .map((item) => item.textOutput)
+      .filter((item): item is string => Boolean(item));
 
     if (imageBase64List.length === 0) {
       return Response.json({ error: "No image generated" }, { status: 502 });
@@ -107,6 +122,8 @@ export async function POST(req: Request) {
     return Response.json({
       imageBase64: imageBase64List[0],
       imageBase64List,
+      aiText: aiTextList[0] || "",
+      aiTextList,
     });
   } catch (error) {
     console.error("generate_image failed:", error);

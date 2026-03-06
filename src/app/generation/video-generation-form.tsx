@@ -8,7 +8,7 @@ import { fileNameWithoutExt, fileToBase64 } from "./utils";
 export default function VideoGenerationForm() {
   const DRAFT_KEY = "generate:draft";
   const ASPECT_OPTIONS = ["16:9", "9:16"] as const;
-  const VIDEO_LENGTH_OPTIONS = ["4", "6", "8"] as const;
+  const VIDEO_LENGTH_OPTIONS = ["8"] as const;
   const RESOLUTION_OPTIONS = ["720p"] as const;
 
   const [prompt, setPrompt] = useState("");
@@ -23,6 +23,7 @@ export default function VideoGenerationForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resultVideoUrl, setResultVideoUrl] = useState("");
+  const [resultAiText, setResultAiText] = useState("");
 
   useEffect(() => {
     const raw = sessionStorage.getItem(DRAFT_KEY);
@@ -96,6 +97,7 @@ export default function VideoGenerationForm() {
     setLoading(true);
     setError("");
     setResultVideoUrl("");
+    setResultAiText("");
 
     try {
       const referenceImages = await buildReferenceImages();
@@ -125,6 +127,7 @@ export default function VideoGenerationForm() {
       setResultVideoUrl(
         `data:${data.mimeType || "video/mp4"};base64,${data.videoBase64}`
       );
+      setResultAiText(typeof data.aiText === "string" ? data.aiText : "");
     } catch {
       setError("Video generation failed");
     } finally {
@@ -277,6 +280,12 @@ export default function VideoGenerationForm() {
       </div>
 
       {error ? <pre className="text-sm text-red-600">{error}</pre> : null}
+      {resultAiText ? (
+        <div className="rounded-xl border bg-white p-3">
+          <h3 className="text-sm font-medium">AI text output</h3>
+          <pre className="mt-2 whitespace-pre-wrap text-sm">{resultAiText}</pre>
+        </div>
+      ) : null}
 
       {resultVideoUrl ? (
         <div className="flex flex-col gap-3">

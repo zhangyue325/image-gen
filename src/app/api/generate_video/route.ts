@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, VideoGenerationReferenceType } from "@google/genai";
 import { createClient } from "../../../../lib/supabase/server";
 
 type ReferenceImage = {
@@ -83,38 +83,34 @@ export async function POST(req: Request) {
         : "";
 
     const combinedPrompt = [
-      setting?.main_prompt || "",
-      purposePrompt,
-      `Purpose: ${purpose || "not specified"}`,
-      `Requested video length: ${videoLength || "not specified"} seconds`,
-      `Requested resolution: ${resolution || "not specified"}`,
-      referenceNames ? `Reference images: ${referenceNames}` : "",
+      // setting?.main_prompt || "",
+      // purposePrompt,
       prompt,
     ]
       .filter(Boolean)
       .join("\n");
 
-    // Gemini API support for `referenceImages` can vary by model/account.
-    // Use the first uploaded image as image-to-video input for compatibility.
-    const firstReferenceImage = Array.isArray(referenceImages)
-      ? referenceImages.find((image) => image?.data)
-      : undefined;
+    const veoReferenceImages = Array.isArray(referenceImages)
+      ? referenceImages
+          .filter((image) => Boolean(image?.data))
+          .map((image) => ({
+            image: {
+              imageBytes: image.data as string,
+              mimeType: image.mimeType || "image/png",
+            },
+            referenceType: VideoGenerationReferenceType.ASSET,
+          }))
+      : [];
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const durationSeconds = Number(videoLength || "8");
     let operation = await ai.models.generateVideos({
       model: normalizedModel,
       prompt: combinedPrompt,
-      image: firstReferenceImage?.data
-        ? {
-            imageBytes: firstReferenceImage.data,
-            mimeType: firstReferenceImage.mimeType || "image/png",
-          }
-        : undefined,
       config: {
-        // aspectRatio: aspectRatio || "16:9",
         durationSeconds: Number.isFinite(durationSeconds) ? durationSeconds : 8,
         resolution: resolution || "720p",
+        referenceImages: veoReferenceImages.length > 0 ? veoReferenceImages : undefined,
       },
     });
 
@@ -138,10 +134,14 @@ export async function POST(req: Request) {
     }
 
     const generatedVideo = operation.response?.generatedVideos?.[0]?.video;
+    const aiText =
+      operation.response?.raiMediaFilteredReasons?.join("\n") ||
+      "Video generated successfully.";
     if (generatedVideo?.videoBytes) {
       return Response.json({
         videoBase64: generatedVideo.videoBytes,
         mimeType: generatedVideo.mimeType || "video/mp4",
+        aiText,
       });
     }
 
@@ -171,7 +171,7 @@ export async function POST(req: Request) {
     const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
     const videoBase64 = videoBuffer.toString("base64");
 
-    return Response.json({ videoBase64, mimeType });
+    return Response.json({ videoBase64, mimeType, aiText });
   } catch (error) {
     console.error("generate_video failed:", error);
     const err = error as {
