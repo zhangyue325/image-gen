@@ -202,11 +202,11 @@ export default function GenerationPage() {
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="Describe what to generate..."
-          className=" rounded-xl border p-3 text-sm"
+          className="min-h-[150px] rounded-xl border p-3 text-sm"
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-3">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Ratio</label>
           <select
@@ -234,6 +234,16 @@ export default function GenerationPage() {
                 {option}
               </option>
             ))}
+          </select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Number of creatives</label>
+          <select
+            className="rounded-xl border border-[color:var(--ring)] bg-white px-3 py-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+            defaultValue="1"
+          >
+            <option value="1">1</option>
           </select>
         </div>
       </div>
@@ -272,7 +282,7 @@ export default function GenerationPage() {
           disabled={loading || !prompt.trim()}
           className="rounded-xl bg-black px-5 py-2 text-sm font-semibold text-white"
         >
-          {loading ? "Generating..." : "Generate"}
+          {loading ? "Vibing..." : "Vibe It✨"}
         </button>
       </div>
 

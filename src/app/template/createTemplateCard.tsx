@@ -74,7 +74,7 @@ export default function CreateTemplateCard() {
       <textarea
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        className="min-h-[90px] rounded-lg border border-[color:var(--ring)] bg-white p-2 text-xs"
+        className="min-h-[160px] rounded-lg border border-[color:var(--ring)] bg-white p-2 text-xs"
         placeholder="Template prompt..."
       />
 
