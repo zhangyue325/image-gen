@@ -58,19 +58,23 @@ export default function GenerationPage() {
     setImages((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const buildReferenceImages = async (): Promise<ReferenceImagePayload[]> => {
+    return Promise.all(
+      images.map(async (item) => ({
+        name: item.name,
+        mimeType: item.file.type || "image/png",
+        data: await fileToBase64(item.file),
+      }))
+    );
+  };
+
   const onGenerate = async () => {
     setLoading(true);
     setError("");
     setResultImageUrl("");
 
     try {
-      const referenceImages: ReferenceImagePayload[] = await Promise.all(
-        images.map(async (item) => ({
-          name: item.name,
-          mimeType: item.file.type || "image/png",
-          data: await fileToBase64(item.file),
-        }))
-      );
+      const referenceImages = await buildReferenceImages();
 
       const res = await fetch("/api/generate_image", {
         method: "POST",
@@ -118,6 +122,8 @@ export default function GenerationPage() {
     setError("");
 
     try {
+      const referenceImages = await buildReferenceImages();
+
       const res = await fetch("/api/fine_tune_image", {
         method: "POST",
         headers: {
@@ -127,6 +133,7 @@ export default function GenerationPage() {
           fineTuningPrompt,
           imageBase64: data,
           imageMimeType,
+          referenceImages,
         }),
       });
 
@@ -211,7 +218,14 @@ export default function GenerationPage() {
         />
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          disabled
+          className="rounded-xl border border-[color:var(--ring)] bg-white px-5 py-2 text-sm font-semibold text-[color:var(--ink-muted)] opacity-60 cursor-not-allowed"
+        >
+          Refine prompt 🚧
+        </button>
         <button
           type="button"
           onClick={onGenerate}

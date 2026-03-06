@@ -5,11 +5,16 @@ type FineTunePayload = {
   fineTuningPrompt?: string;
   imageBase64?: string;
   imageMimeType?: string;
+  referenceImages?: Array<{
+    name?: string;
+    mimeType?: string;
+    data?: string;
+  }>;
 };
 
 export async function POST(req: Request) {
   try {
-    const { fineTuningPrompt, imageBase64, imageMimeType } = (await req.json()) as FineTunePayload;
+    const { fineTuningPrompt, imageBase64, imageMimeType, referenceImages } = (await req.json()) as FineTunePayload;
 
     if (!fineTuningPrompt || typeof fineTuningPrompt !== "string") {
       return Response.json({ error: "Missing fineTuningPrompt" }, { status: 400 });
@@ -34,18 +39,11 @@ export async function POST(req: Request) {
       return Response.json({ error: `Failed to read setting: ${settingError.message}` }, { status: 500 });
     }
 
-    const fullPrompt = [setting?.main_prompt, fineTuningPrompt]
-      .filter(Boolean)
-      .join("\n\n");
 
     const contentParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
-      { text: fullPrompt },
-      {
-        inlineData: {
-          mimeType: imageMimeType || "image/png",
-          data: imageBase64,
-        },
-      },
+      { text: fineTuningPrompt },
+      { text: "the generated image to be refined"},
+      { inlineData: {mimeType: imageMimeType || "image/png",data: imageBase64,}}, 
     ];
 
     if (setting?.logo) {
@@ -57,17 +55,24 @@ export async function POST(req: Request) {
       const logoMimeType = logoRes.headers.get("content-type") || "image/png";
       const logoBuffer = await logoRes.arrayBuffer();
       const logoBase64 = Buffer.from(logoBuffer).toString("base64");
-      contentParts.push({
-        inlineData: {
-          mimeType: logoMimeType,
-          data: logoBase64,
-        },
-      });
+      contentParts.push({ text: "logo image" });
+      contentParts.push({ inlineData: { mimeType: logoMimeType, data: logoBase64 } });
+    }
+
+    if (Array.isArray(referenceImages)) {
+      for (const image of referenceImages) {
+        if (!image?.data) continue;
+        const imageName = (image.name || "reference image").trim();
+        contentParts.push({ text: `${imageName}` });
+        contentParts.push({
+          inlineData: { mimeType: image.mimeType || "image/png", data: image.data },
+        });
+      }
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-image",
+      model: "gemini-3.1-flash-image-preview",
       contents: [{ role: "user", parts: contentParts }],
     });
 
