@@ -4,27 +4,9 @@ import { useEffect, useState } from "react";
 import GeneratedImagePanel from "./generated-image-panel";
 import ReferenceImageList from "./reference-image-list";
 import { fileNameWithoutExt, fileToBase64 } from "./utils";
+import { UploadItem, DraftPayload, ReferenceImagePayload } from "./types"
 
 export default function GenerationPage() {
-  type DraftPayload = {
-    prompt?: string;
-    ratio?: string;
-    size?: string;
-    templateId?: number;
-  };
-
-  type UploadItem = {
-    id: string;
-    file: File;
-    name: string;
-  };
-
-  type ReferenceImagePayload = {
-    name: string;
-    mimeType: string;
-    data: string;
-  };
-
   const DRAFT_KEY = "generate:draft";
 
   const RATIO_OPTIONS = ["1:1", "2:3", "3:2", "4:5", "5:4", "9:16", "16:9", "21:9"] as const;

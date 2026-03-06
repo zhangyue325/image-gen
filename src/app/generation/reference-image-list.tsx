@@ -1,6 +1,6 @@
 "use client";
 
-import type { UploadItem } from "../types";
+import type { UploadItem } from "./types";
 
 type Props = {
   images: UploadItem[];
