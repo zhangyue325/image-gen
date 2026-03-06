@@ -5,6 +5,8 @@ type FineTunePayload = {
   fineTuningPrompt?: string;
   imageBase64?: string;
   imageMimeType?: string;
+  ratio?: string;
+  resolution?: string;
   referenceImages?: Array<{
     name?: string;
     mimeType?: string;
@@ -14,7 +16,7 @@ type FineTunePayload = {
 
 export async function POST(req: Request) {
   try {
-    const { fineTuningPrompt, imageBase64, imageMimeType, referenceImages } = (await req.json()) as FineTunePayload;
+    const { fineTuningPrompt, imageBase64, imageMimeType, ratio, resolution, referenceImages } = (await req.json()) as FineTunePayload;
 
     if (!fineTuningPrompt || typeof fineTuningPrompt !== "string") {
       return Response.json({ error: "Missing fineTuningPrompt" }, { status: 400 });
@@ -74,6 +76,12 @@ export async function POST(req: Request) {
     const response = await ai.models.generateContent({
       model: "gemini-3.1-flash-image-preview",
       contents: [{ role: "user", parts: contentParts }],
+      config: {
+        imageConfig: {
+          aspectRatio: ratio,
+          imageSize: resolution,
+        },
+      },
     });
 
     const resultParts = response.candidates?.[0]?.content?.parts ?? [];

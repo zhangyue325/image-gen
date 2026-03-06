@@ -133,6 +133,8 @@ export default function GenerationPage() {
           fineTuningPrompt,
           imageBase64: data,
           imageMimeType,
+          ratio,
+          resolution,
           referenceImages,
         }),
       });
