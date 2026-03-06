@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
     const contentParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [
       { text: fineTuningPrompt },
-      { text: "the generated image to be refined"},
+      { text: "the image to be refined"},
       { inlineData: {mimeType: imageMimeType || "image/png",data: imageBase64,}}, 
     ];
 

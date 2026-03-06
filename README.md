@@ -1,0 +1,12 @@
+to do list
+
+~~1. enable video generation ()~~
+2. lib folders in template
+3. image to video in the generated ouput
+4. enable more models (chatgpt models, and google models)
+~~5. purpose prompt~~
+
+enable purpose prompt in api call
+template cannot support video
+fine-tuning api call payload? should have main prompt and original prompt?
+video prompt need to be refined

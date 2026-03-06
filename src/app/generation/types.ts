@@ -1,5 +1,8 @@
 export type DraftPayload = {
     prompt?: string;
+    purpose?: string;
+    type?: "image" | "video";
+    model?: string;
     ratio?: string;
     size?: string;
     templateId?: number;

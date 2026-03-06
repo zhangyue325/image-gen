@@ -1,16 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { DraftPayload } from "../generation/types";
 
 const DRAFT_KEY = "generate:draft";
-
-type DraftPayload = {
-  prompt: string;
-  ratio?: string;
-  size?: string;
-  templateId?: number;
-  // add more fields anytime
-};
 
 export default function TemplateCtaButton({ draft }: { draft: DraftPayload }) {
   const router = useRouter();
