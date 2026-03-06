@@ -10,20 +10,27 @@ export default function ImageGenerationForm() {
   const DRAFT_KEY = "generate:draft";
 
   const RATIO_OPTIONS = ["1:1", "2:3", "3:2", "4:5", "5:4", "9:16", "16:9", "21:9"] as const;
-  const RESOLUTION_OPTIONS = ["1K", "2K", "3K"] as const;
-  const PURPOSE_OPTIONS = ["ads creative", "email", "social media"] as const;
+  const RESOLUTION_OPTIONS = ["1K", "2K", "4K"] as const;
+  const IMAGE_MODEL_OPTIONS = [
+    { value: "gemini-3-pro-image-preview", label: "Gemini 3 Pro Image Preview" },
+    { value: "gemini-2.5-flash-image", label: "Gemini 2.5 Flash Image" },
+    { value: "gemini-3.1-flash-image-preview", label: "Gemini 3.1 Flash Image Preview" },
+  ] as const;
 
   const [prompt, setPrompt] = useState("");
-  const [purpose, setPurpose] = useState<string>("ads creative");
+  const [purpose, setPurpose] = useState<string>("");
+  const [purposeOptions, setPurposeOptions] = useState<string[]>([]);
+  const [model, setModel] = useState<string>(IMAGE_MODEL_OPTIONS[2].value);
+  const [numberOfCreatives, setNumberOfCreatives] = useState<string>("1");
   const [ratio, setRatio] = useState<string>("9:16");
   const [resolution, setResolution] = useState<string>("1K");
   const [images, setImages] = useState<UploadItem[]>([]);
-  const [resultImageUrl, setResultImageUrl] = useState("");
+  const [resultImageUrls, setResultImageUrls] = useState<string[]>([]);
+  const [fineTuningPrompts, setFineTuningPrompts] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [refinePromptLoading, setRefinePromptLoading] = useState(false);
-  const [fineTuningPrompt, setFineTuningPrompt] = useState("");
-  const [fineTuningLoading, setFineTuningLoading] = useState(false);
+  const [fineTuningLoadingIndex, setFineTuningLoadingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const raw = sessionStorage.getItem(DRAFT_KEY);
@@ -32,12 +39,33 @@ export default function ImageGenerationForm() {
     try {
       const draft = JSON.parse(raw) as DraftPayload;
       setPrompt(draft.prompt ?? "");
-      setPurpose(draft.purpose ?? "ads creative");
+      setPurpose(draft.purpose ?? "");
+      setModel(draft.model ?? IMAGE_MODEL_OPTIONS[2].value);
       setRatio(draft.ratio ?? "9:16");
       setResolution(draft.size ?? "1K");
     } catch {
       // ignore invalid draft
     }
+  }, []);
+
+  useEffect(() => {
+    async function loadPurposeOptions() {
+      try {
+        const res = await fetch("/api/purpose_options");
+        const data = await res.json();
+        if (!res.ok) return;
+
+        const options = Array.isArray(data.purposeOptions)
+          ? data.purposeOptions.map((item: unknown) => String(item))
+          : [];
+        setPurposeOptions(options);
+        setPurpose((prev) => prev || options[0] || "");
+      } catch {
+        // ignore purpose option loading errors
+      }
+    }
+
+    loadPurposeOptions();
   }, []);
 
   const onUploadImages = (files: FileList | null) => {
@@ -112,7 +140,8 @@ export default function ImageGenerationForm() {
   const onGenerate = async () => {
     setLoading(true);
     setError("");
-    setResultImageUrl("");
+    setResultImageUrls([]);
+    setFineTuningPrompts([]);
 
     try {
       const referenceImages = await buildReferenceImages();
@@ -125,6 +154,8 @@ export default function ImageGenerationForm() {
         body: JSON.stringify({
           prompt,
           purpose,
+          model,
+          numberOfCreatives: Number(numberOfCreatives),
           ratio,
           resolution,
           referenceImages,
@@ -137,7 +168,19 @@ export default function ImageGenerationForm() {
         return;
       }
 
-      setResultImageUrl(`data:image/png;base64,${data.imageBase64}`);
+      const urls = Array.isArray(data.imageBase64List)
+        ? data.imageBase64List.map((item: string) => `data:image/png;base64,${item}`)
+        : data.imageBase64
+          ? [`data:image/png;base64,${data.imageBase64}`]
+          : [];
+
+      if (urls.length === 0) {
+        setError("No image generated");
+        return;
+      }
+
+      setResultImageUrls(urls);
+      setFineTuningPrompts(Array.from({ length: urls.length }, () => ""));
     } catch {
       setError("Generation failed");
     } finally {
@@ -145,22 +188,33 @@ export default function ImageGenerationForm() {
     }
   };
 
-  const onDownload = () => {
-    if (!resultImageUrl) return;
+  const onDownload = (index: number) => {
+    const imageUrl = resultImageUrls[index];
+    if (!imageUrl) return;
     const link = document.createElement("a");
-    link.href = resultImageUrl;
-    link.download = "generated-image.png";
+    link.href = imageUrl;
+    link.download = `generated-image-${index + 1}.png`;
     link.click();
   };
 
-  const onFineTune = async () => {
-    if (!resultImageUrl || !fineTuningPrompt.trim()) return;
+  const onChangeFineTuningPrompt = (index: number, next: string) => {
+    setFineTuningPrompts((prev) => {
+      const nextPrompts = [...prev];
+      nextPrompts[index] = next;
+      return nextPrompts;
+    });
+  };
 
-    const [header, data = ""] = resultImageUrl.split(",");
+  const onFineTune = async (index: number) => {
+    const selectedImageUrl = resultImageUrls[index];
+    const fineTuningPrompt = fineTuningPrompts[index] ?? "";
+    if (!selectedImageUrl || !fineTuningPrompt.trim()) return;
+
+    const [header, data = ""] = selectedImageUrl.split(",");
     const mimeMatch = header.match(/data:(.*?);base64/);
     const imageMimeType = mimeMatch?.[1] || "image/png";
 
-    setFineTuningLoading(true);
+    setFineTuningLoadingIndex(index);
     setError("");
 
     try {
@@ -176,6 +230,7 @@ export default function ImageGenerationForm() {
           imageBase64: data,
           imageMimeType,
           purpose,
+          model,
           ratio,
           resolution,
           referenceImages,
@@ -188,11 +243,18 @@ export default function ImageGenerationForm() {
         return;
       }
 
-      setResultImageUrl(`data:image/png;base64,${result.imageBase64}`);
+      setResultImageUrls((prev) =>
+        prev.map((item, i) => (i === index ? `data:image/png;base64,${result.imageBase64}` : item))
+      );
+      setFineTuningPrompts((prev) => {
+        const nextPrompts = [...prev];
+        nextPrompts[index] = "";
+        return nextPrompts;
+      });
     } catch {
       setError("Fine-tuning failed");
     } finally {
-      setFineTuningLoading(false);
+      setFineTuningLoadingIndex(null);
     }
   };
 
@@ -212,10 +274,15 @@ export default function ImageGenerationForm() {
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Model</label>
           <select
-            className="rounded-xl border border-[color:var(--ring)] bg-white px-3 py-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
-            defaultValue="gemini-3.1-flash-image-preview"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="rounded-xl border bg-white px-3 py-2 text-sm"
           >
-            <option value="gemini-3.1-flash-image-preview">gemini-3.1-flash-image-preview (nano banana 2)</option>
+            {IMAGE_MODEL_OPTIONS.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -226,7 +293,7 @@ export default function ImageGenerationForm() {
             onChange={(e) => setPurpose(e.target.value)}
             className="rounded-xl border bg-white px-3 py-2 text-sm"
           >
-            {PURPOSE_OPTIONS.map((option) => (
+            {purposeOptions.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
@@ -269,11 +336,14 @@ export default function ImageGenerationForm() {
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Number of creatives</label>
           <select
-            className="rounded-xl border border-[color:var(--ring)] bg-white px-3 py-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
-            defaultValue="1"
-            disabled
+            value={numberOfCreatives}
+            onChange={(e) => setNumberOfCreatives(e.target.value)}
+            className="rounded-xl border bg-white px-3 py-2 text-sm"
           >
             <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
           </select>
         </div>
       </div>
@@ -302,7 +372,7 @@ export default function ImageGenerationForm() {
           type="button"
           onClick={onRefinePrompt}
           disabled={refinePromptLoading || !prompt.trim()}
-          className="rounded-xl border border-[color:var(--ring)] bg-white px-5 py-2 text-sm font-semibold text-[color:var(--ink-muted)] disabled:opacity-60 disabled:cursor-not-allowed"
+          className="rounded-xl border border-(--ring) bg-white px-5 py-2 text-sm font-semibold text-[color:var(--ink-muted)] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {refinePromptLoading ? "Refining..." : "Refine prompt"}
         </button>
@@ -318,12 +388,12 @@ export default function ImageGenerationForm() {
 
       {error ? <pre className="text-sm text-red-600">{error}</pre> : null}
       <GeneratedImagePanel
-        resultImageUrl={resultImageUrl}
-        fineTuningPrompt={fineTuningPrompt}
-        fineTuningLoading={fineTuningLoading}
+        resultImageUrls={resultImageUrls}
+        fineTuningPrompts={fineTuningPrompts}
+        fineTuningLoadingIndex={fineTuningLoadingIndex}
         onDownload={onDownload}
         onFineTune={onFineTune}
-        onChangeFineTuningPrompt={setFineTuningPrompt}
+        onChangeFineTuningPrompt={onChangeFineTuningPrompt}
       />
     </>
   );

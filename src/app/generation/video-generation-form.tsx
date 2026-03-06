@@ -7,13 +7,15 @@ import { fileNameWithoutExt, fileToBase64 } from "./utils";
 
 export default function VideoGenerationForm() {
   const DRAFT_KEY = "generate:draft";
-  const PURPOSE_OPTIONS = ["ads creative", "email", "social media"] as const;
   const ASPECT_OPTIONS = ["16:9", "9:16"] as const;
   const VIDEO_LENGTH_OPTIONS = ["8"] as const;
   const RESOLUTION_OPTIONS = ["720p", "1080p"] as const;
 
   const [prompt, setPrompt] = useState("");
-  const [purpose, setPurpose] = useState<string>("ads creative");
+  const [purpose, setPurpose] = useState<string>("");
+  const [purposeOptions, setPurposeOptions] = useState<string[]>([]);
+  const [model, setModel] = useState<string>("veo-3.1-fast-generate-preview");
+  const [numberOfCreatives, setNumberOfCreatives] = useState<string>("1");
   const [aspectRatio, setAspectRatio] = useState<string>("16:9");
   const [videoLength, setVideoLength] = useState<string>("8");
   const [resolution, setResolution] = useState<string>("720p");
@@ -29,11 +31,31 @@ export default function VideoGenerationForm() {
     try {
       const draft = JSON.parse(raw) as DraftPayload;
       setPrompt(draft.prompt ?? "");
-      setPurpose(draft.purpose ?? "ads creative");
+      setPurpose(draft.purpose ?? "");
       setAspectRatio(draft.ratio ?? "16:9");
     } catch {
       // ignore invalid draft
     }
+  }, []);
+
+  useEffect(() => {
+    async function loadPurposeOptions() {
+      try {
+        const res = await fetch("/api/purpose_options");
+        const data = await res.json();
+        if (!res.ok) return;
+
+        const options = Array.isArray(data.purposeOptions)
+          ? data.purposeOptions.map((item: unknown) => String(item))
+          : [];
+        setPurposeOptions(options);
+        setPurpose((prev) => prev || options[0] || "");
+      } catch {
+        // ignore purpose option loading errors
+      }
+    }
+
+    loadPurposeOptions();
   }, []);
 
   const onUploadImages = (files: FileList | null) => {
@@ -133,9 +155,9 @@ export default function VideoGenerationForm() {
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Model</label>
           <select
-            className="rounded-xl border border-[color:var(--ring)] bg-white px-3 py-2 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
-            defaultValue="veo-3.1-fast-generate-preview"
-            disabled
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="rounded-xl border bg-white px-3 py-2 text-sm"
           >
             <option value="veo-3.1-fast-generate-preview">veo-3.1-fast-generate-preview</option>
           </select>
@@ -148,7 +170,7 @@ export default function VideoGenerationForm() {
             onChange={(e) => setPurpose(e.target.value)}
             className="rounded-xl border bg-white px-3 py-2 text-sm"
           >
-            {PURPOSE_OPTIONS.map((option) => (
+            {purposeOptions.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>
@@ -157,7 +179,7 @@ export default function VideoGenerationForm() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <div className="flex flex-col gap-2">
           <label className="text-sm font-medium">Aspect ratio</label>
           <select
@@ -202,6 +224,17 @@ export default function VideoGenerationForm() {
             ))}
           </select>
         </div>
+
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium">Number of creatives</label>
+          <select
+            value={numberOfCreatives}
+            onChange={(e) => setNumberOfCreatives(e.target.value)}
+            className="rounded-xl border bg-white px-3 py-2 text-sm"
+          >
+            <option value="1">1</option>
+          </select>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -227,7 +260,7 @@ export default function VideoGenerationForm() {
         <button
           type="button"
           disabled
-          className="rounded-xl border border-[color:var(--ring)] bg-white px-5 py-2 text-sm font-semibold text-[color:var(--ink-muted)] opacity-60 cursor-not-allowed"
+          className="rounded-xl border border-(--ring) bg-white px-5 py-2 text-sm font-semibold text-[color:var(--ink-muted)] opacity-60 cursor-not-allowed"
         >
           Refine prompt
         </button>

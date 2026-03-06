@@ -1,14 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "../../../lib/supabase/client";
 
 type CreateTemplateCardProps = {
   purposeOptions: string[];
   typeOptions: string[];
-  modelOptions: string[];
-  ratioOptions: string[];
+  imageModelOptions: string[];
+  videoModelOptions: string[];
+  imageRatioOptions: string[];
+  videoRatioOptions: string[];
 };
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -23,20 +25,37 @@ function fileToDataUrl(file: File): Promise<string> {
 export default function CreateTemplateCard({
   purposeOptions,
   typeOptions,
-  modelOptions,
-  ratioOptions,
+  imageModelOptions,
+  videoModelOptions,
+  imageRatioOptions,
+  videoRatioOptions,
 }: CreateTemplateCardProps) {
   const router = useRouter();
   const [templateName, setTemplateName] = useState("");
   const [type, setType] = useState(typeOptions[0] ?? "");
   const [purpose, setPurpose] = useState(purposeOptions[0] ?? "");
-  const [model, setModel] = useState(modelOptions[0] ?? "");
-  const [ratio, setRatio] = useState(ratioOptions[0] ?? "");
+  const [model, setModel] = useState(imageModelOptions[0] ?? videoModelOptions[0] ?? "");
+  const [ratio, setRatio] = useState(imageRatioOptions[0] ?? videoRatioOptions[0] ?? "");
   const [author, setAuthor] = useState("");
   const [prompt, setPrompt] = useState("");
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  const activeModelOptions = type === "video" ? videoModelOptions : imageModelOptions;
+  const activeRatioOptions = type === "video" ? videoRatioOptions : imageRatioOptions;
+
+  useEffect(() => {
+    setModel(activeModelOptions[0] ?? "");
+  }, [type, activeModelOptions]);
+
+  useEffect(() => {
+    setRatio(activeRatioOptions[0] ?? "");
+  }, [type, activeRatioOptions]);
+
+  useEffect(() => {
+    setReferenceFile(null);
+  }, [type]);
 
   const onCreate = async () => {
     if (!prompt.trim()) {
@@ -48,8 +67,8 @@ export default function CreateTemplateCard({
     setMessage("");
 
     let descriptiveImage: string | null = null;
-    if (imageFile) {
-      descriptiveImage = await fileToDataUrl(imageFile);
+    if (referenceFile) {
+      descriptiveImage = await fileToDataUrl(referenceFile);
     }
 
     const supabase = createClient();
@@ -75,7 +94,7 @@ export default function CreateTemplateCard({
     setTemplateName("");
     setPrompt("");
     setAuthor("");
-    setImageFile(null);
+    setReferenceFile(null);
     setMessage("Template created.");
     setSaving(false);
     router.refresh();
@@ -89,7 +108,7 @@ export default function CreateTemplateCard({
         value={templateName}
         onChange={(e) => setTemplateName(e.target.value)}
         placeholder="Template name"
-        className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
+        className="rounded-lg border border-(--ring) bg-white px-2 py-2 text-xs"
       />
 
       <div className="grid gap-2 md:grid-cols-2">
@@ -99,7 +118,7 @@ export default function CreateTemplateCard({
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
+              className="rounded-lg border border-(--ring) bg-white px-2 py-2 text-xs"
             >
               {typeOptions.map((option) => (
                 <option key={option} value={option}>
@@ -112,7 +131,7 @@ export default function CreateTemplateCard({
               value={type}
               onChange={(e) => setType(e.target.value)}
               placeholder="Type"
-              className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
+              className="rounded-lg border border-(--ring) bg-white px-2 py-2 text-xs"
             />
           )}
         </div>
@@ -123,7 +142,7 @@ export default function CreateTemplateCard({
             <select
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
-              className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
+              className="rounded-lg border border-(--ring) bg-white px-2 py-2 text-xs"
             >
               {purposeOptions.map((option) => (
                 <option key={option} value={option}>
@@ -136,7 +155,7 @@ export default function CreateTemplateCard({
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
               placeholder="Purpose"
-              className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
+              className="rounded-lg border border-(--ring) bg-white px-2 py-2 text-xs"
             />
           )}
         </div>
@@ -145,13 +164,13 @@ export default function CreateTemplateCard({
       <div className="grid gap-2 md:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label className="text-xs text-[color:var(--ink-muted)]">model</label>
-          {modelOptions.length > 0 ? (
+          {activeModelOptions.length > 0 ? (
             <select
               value={model}
               onChange={(e) => setModel(e.target.value)}
-              className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
+              className="rounded-lg border border-(--ring) bg-white px-2 py-2 text-xs"
             >
-              {modelOptions.map((option) => (
+              {activeModelOptions.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -162,20 +181,20 @@ export default function CreateTemplateCard({
               value={model}
               onChange={(e) => setModel(e.target.value)}
               placeholder="Model"
-              className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
+              className="rounded-lg border border-(--ring) bg-white px-2 py-2 text-xs"
             />
           )}
         </div>
 
         <div className="flex flex-col gap-1">
           <label className="text-xs text-[color:var(--ink-muted)]">ratio</label>
-          {ratioOptions.length > 0 ? (
+          {activeRatioOptions.length > 0 ? (
             <select
               value={ratio}
               onChange={(e) => setRatio(e.target.value)}
-              className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
+              className="rounded-lg border border-(--ring) bg-white px-2 py-2 text-xs"
             >
-              {ratioOptions.map((option) => (
+              {activeRatioOptions.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>
@@ -186,35 +205,40 @@ export default function CreateTemplateCard({
               value={ratio}
               onChange={(e) => setRatio(e.target.value)}
               placeholder="Ratio"
-              className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
+              className="rounded-lg border border-(--ring) bg-white px-2 py-2 text-xs"
             />
           )}
         </div>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-[color:var(--ink-muted)]">author:</label>
+        <label className="text-xs text-[color:var(--ink-muted)]">author</label>
         <input
           value={author}
           onChange={(e) => setAuthor(e.target.value)}
           placeholder="Author"
-          className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
+          className="rounded-lg border border-(--ring) bg-white px-2 py-2 text-xs"
         />
       </div>
 
       <textarea
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
-        className="min-h-[160px] rounded-lg border border-[color:var(--ring)] bg-white p-2 text-xs"
+        className="min-h-[160px] rounded-lg border border-(--ring) bg-white p-2 text-xs"
         placeholder="Template prompt..."
       />
 
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-        className="text-xs"
-      />
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-[color:var(--ink-muted)]">
+          {type === "video" ? "Reference video" : "Reference image"}
+        </label>
+        <input
+          type="file"
+          accept={type === "video" ? "video/*" : "image/*"}
+          onChange={(e) => setReferenceFile(e.target.files?.[0] || null)}
+          className="text-xs"
+        />
+      </div>
 
       <button
         type="button"

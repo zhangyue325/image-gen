@@ -34,7 +34,7 @@ export default function GenerationPage() {
           className={`rounded-xl px-4 py-2 text-sm font-semibold ${
             mode === "image"
               ? "bg-black text-white"
-              : "border border-[color:var(--ring)] bg-white text-[color:var(--ink-muted)]"
+              : "border border-(--ring) bg-white text-[color:var(--ink-muted)]"
           }`}
         >
           Image
@@ -45,7 +45,7 @@ export default function GenerationPage() {
           className={`rounded-xl px-4 py-2 text-sm font-semibold ${
             mode === "video"
               ? "bg-black text-white"
-              : "border border-[color:var(--ring)] bg-white text-[color:var(--ink-muted)]"
+              : "border border-(--ring) bg-white text-[color:var(--ink-muted)]"
           }`}
         >
           Video

@@ -37,7 +37,7 @@ export default function TopNav() {
       </div>
 
       {/* <div className="ml-auto flex items-center gap-3 text-xs text-[color:var(--ink-muted)]">
-        <button className="rounded-full border border-[color:var(--ring)] px-3 py-1 text-xs font-semibold">
+        <button className="rounded-full border border-(--ring) px-3 py-1 text-xs font-semibold">
           Login
         </button>
       </div> */}

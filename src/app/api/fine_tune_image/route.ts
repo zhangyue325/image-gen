@@ -5,6 +5,7 @@ type FineTunePayload = {
   fineTuningPrompt?: string;
   imageBase64?: string;
   imageMimeType?: string;
+  model?: string;
   ratio?: string;
   resolution?: string;
   referenceImages?: Array<{
@@ -14,9 +15,15 @@ type FineTunePayload = {
   }>;
 };
 
+const ALLOWED_IMAGE_MODELS = new Set([
+  "gemini-3-pro-image-preview",
+  "gemini-2.5-flash-image",
+  "gemini-3.1-flash-image-preview",
+]);
+
 export async function POST(req: Request) {
   try {
-    const { fineTuningPrompt, imageBase64, imageMimeType, ratio, resolution, referenceImages } = (await req.json()) as FineTunePayload;
+    const { fineTuningPrompt, imageBase64, imageMimeType, model, ratio, resolution, referenceImages } = (await req.json()) as FineTunePayload;
 
     if (!fineTuningPrompt || typeof fineTuningPrompt !== "string") {
       return Response.json({ error: "Missing fineTuningPrompt" }, { status: 400 });
@@ -29,6 +36,11 @@ export async function POST(req: Request) {
     if (!process.env.GEMINI_API_KEY) {
       return Response.json({ error: "Missing GEMINI_API_KEY" }, { status: 500 });
     }
+
+    const selectedModel =
+      model && ALLOWED_IMAGE_MODELS.has(model)
+        ? model
+        : "gemini-3.1-flash-image-preview";
 
     const supabase = await createClient();
     const { data: setting, error: settingError } = await supabase
@@ -74,7 +86,7 @@ export async function POST(req: Request) {
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-image-preview",
+      model: selectedModel,
       contents: [{ role: "user", parts: contentParts }],
       config: {
         imageConfig: {

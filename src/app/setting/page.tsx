@@ -111,7 +111,7 @@ export default function SettingPage() {
           Applied across all generations before specific prompts.
         </p>
         <textarea
-          className="min-h-[220px] rounded-2xl border border-[color:var(--ring)] bg-white p-3 text-sm"
+          className="min-h-[220px] rounded-2xl border border-(--ring) bg-white p-3 text-sm"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
         />
@@ -128,14 +128,14 @@ export default function SettingPage() {
           <button
             type="button"
             onClick={addPurpose}
-            className="rounded-xl border border-[color:var(--ring)] bg-white px-3 py-2 text-xs font-medium"
+            className="rounded-xl border border-(--ring) bg-white px-3 py-2 text-xs font-medium"
           >
             Add purpose
           </button>
         </div>
 
         {purposeItems.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[color:var(--ring)] p-4 text-sm text-[color:var(--ink-muted)]">
+          <div className="rounded-2xl border border-dashed border-(--ring) p-4 text-sm text-[color:var(--ink-muted)]">
             No purpose yet. Click <strong>Add purpose</strong> to create one.
           </div>
         ) : (
@@ -143,7 +143,7 @@ export default function SettingPage() {
             {purposeItems.map((item, index) => (
               <div
                 key={item.id}
-                className="rounded-2xl border border-[color:var(--ring)] bg-[color:var(--surface-2)] p-4 flex flex-col gap-3"
+                className="rounded-2xl border border-(--ring) bg-[color:var(--surface-2)] p-4 flex flex-col gap-3"
               >
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--ink-muted)]">
@@ -152,7 +152,7 @@ export default function SettingPage() {
                   <button
                     type="button"
                     onClick={() => removePurpose(item.id)}
-                    className="rounded-xl border border-[color:var(--ring)] bg-white px-3 py-1.5 text-xs"
+                    className="rounded-xl border border-(--ring) bg-white px-3 py-1.5 text-xs"
                   >
                     Delete
                   </button>
@@ -166,7 +166,7 @@ export default function SettingPage() {
                     value={item.name}
                     onChange={(e) => updatePurposeName(item.id, e.target.value)}
                     placeholder="Example: ads creative"
-                    className="rounded-xl border border-[color:var(--ring)] bg-white px-3 py-2 text-sm"
+                    className="rounded-xl border border-(--ring) bg-white px-3 py-2 text-sm"
                   />
                 </div>
 
@@ -175,7 +175,7 @@ export default function SettingPage() {
                     Prompt text
                   </label>
                   <textarea
-                    className="min-h-[150px] rounded-2xl border border-[color:var(--ring)] bg-white p-3 text-sm"
+                    className="min-h-[150px] rounded-2xl border border-(--ring) bg-white p-3 text-sm"
                     value={item.prompt}
                     onChange={(e) => updatePurposePrompt(item.id, e.target.value)}
                     placeholder="Purpose prompt..."
@@ -193,7 +193,7 @@ export default function SettingPage() {
           <img
             src={setting.logo}
             alt="logo"
-            className="w-[200px] rounded-xl border border-[color:var(--ring)] bg-white p-2"
+            className="w-[200px] rounded-xl border border-(--ring) bg-white p-2"
           />
         ) : (
           <p className="text-sm text-[color:var(--ink-muted)]">No logo found.</p>
@@ -205,7 +205,7 @@ export default function SettingPage() {
           type="button"
           title="Coming soon"
           disabled
-          className="rounded-xl border border-[color:var(--ring)] bg-white px-5 py-2 text-sm font-medium text-[color:var(--ink-muted)] disabled:opacity-80 disabled:cursor-not-allowed"
+          className="rounded-xl border border-(--ring) bg-white px-5 py-2 text-sm font-medium text-[color:var(--ink-muted)] disabled:opacity-80 disabled:cursor-not-allowed"
         >
           Test Main Prompt
         </button>

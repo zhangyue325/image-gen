@@ -7,12 +7,20 @@ type ReferenceImage = {
   data?: string;
 };
 
+const ALLOWED_IMAGE_MODELS = new Set([
+  "gemini-3-pro-image-preview",
+  "gemini-2.5-flash-image",
+  "gemini-3.1-flash-image-preview",
+]);
+
 export async function POST(req: Request) {
   try {
-    const { prompt, ratio, resolution, referenceImages } = (await req.json()) as {
+    const { prompt, model, ratio, resolution, numberOfCreatives, referenceImages } = (await req.json()) as {
       prompt?: string;
+      model?: string;
       ratio?: string;
       resolution?: string;
+      numberOfCreatives?: number;
       referenceImages?: ReferenceImage[];
     };
 
@@ -23,6 +31,12 @@ export async function POST(req: Request) {
     if (!process.env.GEMINI_API_KEY) {
       return Response.json({ error: "Missing GEMINI_API_KEY" }, { status: 500 });
     }
+
+    const selectedModel =
+      model && ALLOWED_IMAGE_MODELS.has(model)
+        ? model
+        : "gemini-3.1-flash-image-preview";
+    const creativeCount = Math.min(4, Math.max(1, Number(numberOfCreatives) || 1));
 
     const supabase = await createClient();
     const { data: setting, error: settingError } = await supabase
@@ -67,25 +81,33 @@ export async function POST(req: Request) {
     }
 
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-    const response = await ai.models.generateContent({
-      model: "gemini-3.1-flash-image-preview",
-      contents: [{ role: "user", parts: contentParts }],
-      config: {
-        imageConfig: {
-          aspectRatio: ratio,
-          imageSize: resolution,
+    const tasks = Array.from({ length: creativeCount }).map(async () => {
+      const response = await ai.models.generateContent({
+        model: selectedModel,
+        contents: [{ role: "user", parts: contentParts }],
+        config: {
+          imageConfig: {
+            aspectRatio: ratio,
+            imageSize: resolution,
+          },
         },
-      },
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts ?? [];
+      return parts.find((part) => part.inlineData?.data)?.inlineData?.data ?? null;
     });
 
-    const parts = response.candidates?.[0]?.content?.parts ?? [];
-    const imageBase64 = parts.find((part) => part.inlineData?.data)?.inlineData?.data;
+    const results = await Promise.all(tasks);
+    const imageBase64List = results.filter((item): item is string => Boolean(item));
 
-    if (!imageBase64) {
+    if (imageBase64List.length === 0) {
       return Response.json({ error: "No image generated" }, { status: 502 });
     }
 
-    return Response.json({ imageBase64 });
+    return Response.json({
+      imageBase64: imageBase64List[0],
+      imageBase64List,
+    });
   } catch (error) {
     console.error("generate_image failed:", error);
     const err = error as { message?: string; status?: number };
