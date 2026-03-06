@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import GeneratedImagePanel from "./generated-image-panel";
 import ReferenceImageList from "./reference-image-list";
 import { fileNameWithoutExt, fileToBase64 } from "./utils";
-import { UploadItem, DraftPayload, ReferenceImagePayload } from "./types"
+import { UploadItem, DraftPayload, ReferenceImagePayload } from "./types";
 
 export default function GenerationPage() {
   const DRAFT_KEY = "generate:draft";
@@ -19,6 +19,7 @@ export default function GenerationPage() {
   const [resultImageUrl, setResultImageUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [refinePromptLoading, setRefinePromptLoading] = useState(false);
   const [fineTuningPrompt, setFineTuningPrompt] = useState("");
   const [fineTuningLoading, setFineTuningLoading] = useState(false);
 
@@ -66,6 +67,42 @@ export default function GenerationPage() {
         data: await fileToBase64(item.file),
       }))
     );
+  };
+
+  const onRefinePrompt = async () => {
+    if (!prompt.trim()) return;
+
+    setRefinePromptLoading(true);
+    setError("");
+
+    try {
+      const referenceImageNames = images.map((item) => item.name).filter(Boolean);
+
+      const res = await fetch("/api/refine_prompt", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt,
+          ratio,
+          resolution,
+          referenceImageNames,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Prompt refinement failed");
+        return;
+      }
+
+      setPrompt(data.refinedPrompt ?? prompt);
+    } catch {
+      setError("Prompt refinement failed");
+    } finally {
+      setRefinePromptLoading(false);
+    }
   };
 
   const onGenerate = async () => {
@@ -223,10 +260,11 @@ export default function GenerationPage() {
       <div className="flex justify-end gap-2">
         <button
           type="button"
-          disabled
-          className="rounded-xl border border-[color:var(--ring)] bg-white px-5 py-2 text-sm font-semibold text-[color:var(--ink-muted)] opacity-60 cursor-not-allowed"
+          onClick={onRefinePrompt}
+          disabled={refinePromptLoading || !prompt.trim()}
+          className="rounded-xl border border-[color:var(--ring)] bg-white px-5 py-2 text-sm font-semibold text-[color:var(--ink-muted)] disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Refine prompt 🚧
+          {refinePromptLoading ? "Refining..." : "Refine prompt"}
         </button>
         <button
           type="button"

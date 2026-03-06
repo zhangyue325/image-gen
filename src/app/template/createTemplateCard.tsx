@@ -83,9 +83,12 @@ export default function CreateTemplateCard() {
         onChange={(e) => setPurpose(e.target.value)}
         className="rounded-lg border border-[color:var(--ring)] bg-white px-2 py-2 text-xs"
       >
-        <option value="9:16">9:16</option>
         <option value="1:1">1:1</option>
+        <option value="2:3">2:3</option>
+        <option value="3:2">3:2</option>
+        <option value="9:16">9:16</option>
         <option value="16:9">16:9</option>
+        <option value="21:9">21:9</option>
       </select>
 
       <input
