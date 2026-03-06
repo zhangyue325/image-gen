@@ -11,6 +11,6 @@ enable purpose prompt in api call
 fine-tuning api call payload? should have main prompt and original prompt?
 video api need to be refined
 enable or disable main prompt toggle
-template page is very slow (because the image is base64 in db)
+~~template page is very slow (because the image is base64 in db)~~
 template should allow user to upload reference images or videos
 save template from generation page

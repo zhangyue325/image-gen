@@ -13,13 +13,11 @@ type CreateTemplateCardProps = {
   videoRatioOptions: string[];
 };
 
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(new Error("Failed to read image."));
-    reader.readAsDataURL(file);
-  });
+const TEMPLATE_STORAGE_BUCKET = "template";
+const TEMPLATE_STORAGE_FOLDER = "template";
+
+function sanitizeFileName(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
 export default function CreateTemplateCard({
@@ -65,13 +63,34 @@ export default function CreateTemplateCard({
 
     setSaving(true);
     setMessage("");
+    const supabase = createClient();
 
     let descriptiveImage: string | null = null;
     if (referenceFile) {
-      descriptiveImage = await fileToDataUrl(referenceFile);
-    }
+      const safeFileName = sanitizeFileName(referenceFile.name || "upload");
+      const storagePath = `${TEMPLATE_STORAGE_FOLDER}/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}-${safeFileName}`;
 
-    const supabase = createClient();
+      const { error: uploadError } = await supabase.storage
+        .from(TEMPLATE_STORAGE_BUCKET)
+        .upload(storagePath, referenceFile, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: referenceFile.type || undefined,
+        });
+
+      if (uploadError) {
+        setMessage(uploadError.message);
+        setSaving(false);
+        return;
+      }
+
+      const { data: publicData } = supabase.storage
+        .from(TEMPLATE_STORAGE_BUCKET)
+        .getPublicUrl(storagePath);
+      descriptiveImage = publicData.publicUrl || null;
+    }
     const { error } = await supabase.from("template").insert([
       {
         template_name: templateName || null,

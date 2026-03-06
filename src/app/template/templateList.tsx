@@ -76,6 +76,10 @@ export default function TemplateList({
     });
   }, [templates, typeFilter, purposeFilter, modelFilter, ratioFilter, authorFilter, query]);
 
+  const isVideoSource = (src: string) =>
+    src.startsWith("data:video/") ||
+    /\.(mp4|webm|mov|avi|mkv|m4v)(\?|#|$)/i.test(src);
+
   return (
     <>
       <TemplateFilters
@@ -111,7 +115,7 @@ export default function TemplateList({
         <div key={t.id} className="relative border rounded-xl p-3 flex flex-col gap-2">
           <DeleteTemplateButton templateId={t.id} />
           {t.descriptive_image &&
-            (t.descriptive_image.startsWith("data:video/") ? (
+            (isVideoSource(t.descriptive_image) ? (
               <div className="w-full h-56 rounded-lg bg-gray-50 flex items-center justify-center overflow-hidden">
                 <video
                   src={t.descriptive_image}
