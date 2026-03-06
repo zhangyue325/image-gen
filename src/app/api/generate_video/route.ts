@@ -1,3 +1,4 @@
+import { GoogleGenAI } from "@google/genai";
 import { createClient } from "../../../../lib/supabase/server";
 
 type ReferenceImage = {
@@ -9,14 +10,17 @@ type ReferenceImage = {
 type GenerateVideoPayload = {
   prompt?: string;
   purpose?: string;
+  model?: string;
   aspectRatio?: string;
   videoLength?: string;
   resolution?: string;
   referenceImages?: ReferenceImage[];
 };
-
-const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const VIDEO_ENDPOINT = `${BASE_URL}/models/veo-3.1-fast-generate-preview:predictLongRunning`;
+const ALLOWED_MODELS = [
+  "veo-3.1-generate-preview",
+  "veo-3.1-fast-generate-preview",
+] as const;
+const DEFAULT_MODEL = "veo-3.1-generate-preview";
 
 function getPurposePrompt(
   purposePrompt: unknown,
@@ -32,6 +36,7 @@ export async function POST(req: Request) {
     const {
       prompt,
       purpose,
+      model,
       aspectRatio,
       videoLength,
       resolution,
@@ -44,6 +49,14 @@ export async function POST(req: Request) {
 
     if (!process.env.GEMINI_API_KEY) {
       return Response.json({ error: "Missing GEMINI_API_KEY" }, { status: 500 });
+    }
+
+    const normalizedModel = typeof model === "string" && model.trim() ? model.trim() : DEFAULT_MODEL;
+    if (!ALLOWED_MODELS.includes(normalizedModel as (typeof ALLOWED_MODELS)[number])) {
+      return Response.json(
+        { error: `Unsupported model: ${normalizedModel}` },
+        { status: 400 }
+      );
     }
 
     const supabase = await createClient();
@@ -81,119 +94,62 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join("\n");
 
-    const veoReferenceImages: Array<{
-      image: { bytesBase64Encoded: string; mimeType: string };
-      referenceType: "asset";
-    }> = [];
+    // Gemini API support for `referenceImages` can vary by model/account.
+    // Use the first uploaded image as image-to-video input for compatibility.
+    const firstReferenceImage = Array.isArray(referenceImages)
+      ? referenceImages.find((image) => image?.data)
+      : undefined;
 
-    if (setting?.logo && typeof setting.logo === "string") {
-      const logoRes = await fetch(setting.logo);
-      if (logoRes.ok) {
-        const logoMimeType = logoRes.headers.get("content-type") || "image/png";
-        const logoArrayBuffer = await logoRes.arrayBuffer();
-        const logoBase64 = Buffer.from(logoArrayBuffer).toString("base64");
-        veoReferenceImages.push({
-          image: {
-            bytesBase64Encoded: logoBase64,
-            mimeType: logoMimeType,
-          },
-          referenceType: "asset",
-        });
-      }
-    }
-
-    if (Array.isArray(referenceImages)) {
-      for (const image of referenceImages) {
-        if (!image?.data) continue;
-        veoReferenceImages.push({
-          image: {
-            bytesBase64Encoded: image.data,
-            mimeType: image.mimeType || "image/png",
-          },
-          referenceType: "asset",
-        });
-      }
-    }
-
-    const payload = {
-      instances: [
-        {
-          prompt: combinedPrompt,
-          referenceImages: veoReferenceImages,
-        },
-      ],
-      parameters: {
-        aspectRatio: aspectRatio || "16:9",
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const durationSeconds = Number(videoLength || "8");
+    let operation = await ai.models.generateVideos({
+      model: normalizedModel,
+      prompt: combinedPrompt,
+      image: firstReferenceImage?.data
+        ? {
+            imageBytes: firstReferenceImage.data,
+            mimeType: firstReferenceImage.mimeType || "image/png",
+          }
+        : undefined,
+      config: {
+        // aspectRatio: aspectRatio || "16:9",
+        durationSeconds: Number.isFinite(durationSeconds) ? durationSeconds : 8,
+        resolution: resolution || "720p",
       },
-    };
-
-    const startRes = await fetch(VIDEO_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": process.env.GEMINI_API_KEY,
-      },
-      body: JSON.stringify(payload),
     });
 
-    const startRaw = await startRes.text();
-    if (!startRes.ok) {
-      return Response.json(
-        { error: "Veo request failed", details: startRaw },
-        { status: 500 }
-      );
-    }
-
-    const startJson = JSON.parse(startRaw);
-    const operationName = startJson?.name;
-    if (!operationName) {
-      return Response.json(
-        { error: "No operation name returned from Veo" },
-        { status: 500 }
-      );
-    }
-
-    const pollUrl = `${BASE_URL}/${operationName}`;
-    let statusJson: any = null;
-
-    for (let i = 0; i < 90; i += 1) {
+    for (let i = 0; i < 90 && !operation.done; i += 1) {
       await new Promise((resolve) => setTimeout(resolve, 5000));
-      const statusRes = await fetch(pollUrl, {
-        headers: { "x-goog-api-key": process.env.GEMINI_API_KEY },
-      });
-
-      if (!statusRes.ok) {
-        const detail = await statusRes.text();
-        return Response.json(
-          { error: "Polling Veo failed", details: detail },
-          { status: 500 }
-        );
-      }
-
-      statusJson = await statusRes.json();
-      if (statusJson.error) {
-        return Response.json(
-          { error: "Veo operation error", details: statusJson.error },
-          { status: 500 }
-        );
-      }
-
-      if (statusJson.done === true) break;
+      operation = await ai.operations.getVideosOperation({ operation });
     }
 
-    if (!statusJson?.done) {
+    if (!operation.done) {
       return Response.json(
         { error: "Video generation timed out" },
         { status: 504 }
       );
     }
 
-    const videoUri =
-      statusJson?.response?.generateVideoResponse?.generatedSamples?.[0]?.video?.uri;
+    if (operation.error) {
+      return Response.json(
+        { error: "Veo operation error", details: operation.error },
+        { status: 500 }
+      );
+    }
+
+    const generatedVideo = operation.response?.generatedVideos?.[0]?.video;
+    if (generatedVideo?.videoBytes) {
+      return Response.json({
+        videoBase64: generatedVideo.videoBytes,
+        mimeType: generatedVideo.mimeType || "video/mp4",
+      });
+    }
+
+    const videoUri = generatedVideo?.uri;
 
     if (!videoUri) {
       return Response.json(
-        { error: "No video URI returned", details: statusJson },
+        { error: "No video URI returned", details: operation.response },
         { status: 500 }
       );
     }
@@ -218,11 +174,22 @@ export async function POST(req: Request) {
     return Response.json({ videoBase64, mimeType });
   } catch (error) {
     console.error("generate_video failed:", error);
-    const err = error as { message?: string; status?: number };
+    const err = error as {
+      message?: string;
+      status?: number;
+      code?: number;
+      errorDetails?: unknown;
+    };
+    const errorMessage =
+      err.message?.includes("Your use case is currently not supported")
+        ? "Image-to-video generation is not enabled for this model/account combination yet."
+        : err.message ?? "Video generation failed";
     return Response.json(
-      { error: err.message ?? "Video generation failed" },
-      { status: err.status ?? 500 }
+      {
+        error: errorMessage,
+        details: err.errorDetails ?? undefined,
+      },
+      { status: err.status ?? err.code ?? 500 }
     );
   }
 }
-

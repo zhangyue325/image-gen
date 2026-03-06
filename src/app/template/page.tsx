@@ -33,7 +33,10 @@ export default async function TemplatePage() {
     "gemini-2.5-flash-image",
     "gemini-3.1-flash-image-preview",
   ];
-  const videoModelOptions = ["veo-3.1-fast-generate-preview"];
+  const videoModelOptions = [
+    "veo-3.1-generate-preview",
+    "veo-3.1-fast-generate-preview",
+  ];
   const imageRatioOptions = ["1:1", "2:3", "3:2", "4:5", "5:4", "9:16", "16:9", "21:9"];
   const videoRatioOptions = ["16:9", "9:16"];
 

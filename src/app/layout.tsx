@@ -17,8 +17,8 @@ const spaceMono = Space_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gemini Creative Lab",
-  description: "Generate and refine brand images and videos with Gemini and Veo.",
+  title: "Creative Lab",
+  description: "Generate and refine brand images and videos with AI.",
 };
 
 export default function RootLayout({

@@ -8,13 +8,13 @@ import { fileNameWithoutExt, fileToBase64 } from "./utils";
 export default function VideoGenerationForm() {
   const DRAFT_KEY = "generate:draft";
   const ASPECT_OPTIONS = ["16:9", "9:16"] as const;
-  const VIDEO_LENGTH_OPTIONS = ["8"] as const;
-  const RESOLUTION_OPTIONS = ["720p", "1080p"] as const;
+  const VIDEO_LENGTH_OPTIONS = ["4", "6", "8"] as const;
+  const RESOLUTION_OPTIONS = ["720p"] as const;
 
   const [prompt, setPrompt] = useState("");
   const [purpose, setPurpose] = useState<string>("");
   const [purposeOptions, setPurposeOptions] = useState<string[]>([]);
-  const [model, setModel] = useState<string>("veo-3.1-fast-generate-preview");
+  const [model, setModel] = useState<string>("veo-3.1-generate-preview");
   const [numberOfCreatives, setNumberOfCreatives] = useState<string>("1");
   const [aspectRatio, setAspectRatio] = useState<string>("16:9");
   const [videoLength, setVideoLength] = useState<string>("8");
@@ -108,6 +108,7 @@ export default function VideoGenerationForm() {
         body: JSON.stringify({
           prompt,
           purpose,
+          model,
           aspectRatio,
           videoLength,
           resolution,
@@ -159,6 +160,7 @@ export default function VideoGenerationForm() {
             onChange={(e) => setModel(e.target.value)}
             className="rounded-xl border bg-white px-3 py-2 text-sm"
           >
+            <option value="veo-3.1-generate-preview">veo-3.1-generate-preview</option>
             <option value="veo-3.1-fast-generate-preview">veo-3.1-fast-generate-preview</option>
           </select>
         </div>

@@ -9,5 +9,6 @@ to do list
 enable purpose prompt in api call
 ~~template cannot support video~~
 fine-tuning api call payload? should have main prompt and original prompt?
-video prompt need to be refined
+video api need to be refined
 enable or disable main prompt toggle
+template page is very slow (because the image is base64 in db)
