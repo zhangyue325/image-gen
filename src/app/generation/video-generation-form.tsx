@@ -13,7 +13,7 @@ export default function VideoGenerationForm({ handoffFromImage }: Props) {
   const DRAFT_KEY = "generate:draft";
   const ASPECT_OPTIONS = ["16:9", "9:16"] as const;
   const VIDEO_LENGTH_OPTIONS = ["8"] as const;
-  const RESOLUTION_OPTIONS = ["720p"] as const;
+  const RESOLUTION_OPTIONS = ["720p", "1080p", "4k"] as const;
 
   const [prompt, setPrompt] = useState("");
   const [purpose, setPurpose] = useState<string>("");
@@ -169,14 +169,21 @@ export default function VideoGenerationForm({ handoffFromImage }: Props) {
 
       const data = await res.json();
       if (!res.ok) {
+        if (typeof data.aiText === "string" && data.aiText) {
+          setResultAiText(data.aiText);
+        }
         setError(data.error ?? "Video generation failed");
         return;
       }
 
-      setResultVideoUrl(
-        `data:${data.mimeType || "video/mp4"};base64,${data.videoBase64}`
-      );
-      setResultAiText(typeof data.aiText === "string" ? data.aiText : "");
+      const nextAiText = typeof data.aiText === "string" ? data.aiText : "";
+      setResultAiText(nextAiText);
+
+      if (typeof data.videoBase64 === "string" && data.videoBase64) {
+        setResultVideoUrl(
+          `data:${data.mimeType || "video/mp4"};base64,${data.videoBase64}`
+        );
+      }
     } catch {
       setError("Video generation failed");
     } finally {
@@ -258,7 +265,7 @@ export default function VideoGenerationForm({ handoffFromImage }: Props) {
           >
             {VIDEO_LENGTH_OPTIONS.map((option) => (
               <option key={option} value={option}>
-                {option}s
+                {option}
               </option>
             ))}
           </select>

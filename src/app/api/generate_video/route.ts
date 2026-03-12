@@ -119,24 +119,25 @@ export async function POST(req: Request) {
       operation = await ai.operations.getVideosOperation({ operation });
     }
 
+    const aiText =
+      operation.response?.raiMediaFilteredReasons?.join("\n") ||
+      "Video generated successfully.";
+
     if (!operation.done) {
       return Response.json(
-        { error: "Video generation timed out" },
+        { error: "Video generation timed out", aiText },
         { status: 504 }
       );
     }
 
     if (operation.error) {
       return Response.json(
-        { error: "Veo operation error", details: operation.error },
+        { error: "Veo operation error", details: operation.error, aiText },
         { status: 500 }
       );
     }
 
     const generatedVideo = operation.response?.generatedVideos?.[0]?.video;
-    const aiText =
-      operation.response?.raiMediaFilteredReasons?.join("\n") ||
-      "Video generated successfully.";
     if (generatedVideo?.videoBytes) {
       return Response.json({
         videoBase64: generatedVideo.videoBytes,
@@ -148,8 +149,15 @@ export async function POST(req: Request) {
     const videoUri = generatedVideo?.uri;
 
     if (!videoUri) {
+      if (operation.response?.raiMediaFilteredReasons?.length) {
+        return Response.json({
+          aiText,
+          details: operation.response,
+        });
+      }
+
       return Response.json(
-        { error: "No video URI returned", details: operation.response },
+        { error: "No video URI returned", details: operation.response, aiText },
         { status: 500 }
       );
     }
