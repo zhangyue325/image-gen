@@ -86,12 +86,15 @@ export async function POST(req: Request) {
         model: selectedModel,
         contents: [{ role: "user", parts: contentParts }],
         config: {
+          responseModalities: ['TEXT', 'IMAGE'],
           imageConfig: {
             aspectRatio: ratio,
             imageSize: resolution,
           },
         },
       });
+      
+      console.log(response);
 
       const parts = response.candidates?.[0]?.content?.parts ?? [];
       const imageBase64 = parts.find((part) => part.inlineData?.data)?.inlineData?.data ?? null;
