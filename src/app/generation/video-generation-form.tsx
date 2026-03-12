@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from "react";
 import ReferenceImageList from "./reference-image-list";
-import { DraftPayload, ReferenceImagePayload, UploadItem } from "./types";
+import { DraftPayload, ReferenceImagePayload, UploadItem, VideoHandoffPayload } from "./types";
 import { fileNameWithoutExt, fileToBase64 } from "./utils";
 
-export default function VideoGenerationForm() {
+type Props = {
+  handoffFromImage: VideoHandoffPayload | null;
+};
+
+export default function VideoGenerationForm({ handoffFromImage }: Props) {
   const DRAFT_KEY = "generate:draft";
   const ASPECT_OPTIONS = ["16:9", "9:16"] as const;
   const VIDEO_LENGTH_OPTIONS = ["8"] as const;
@@ -58,6 +62,51 @@ export default function VideoGenerationForm() {
 
     loadPurposeOptions();
   }, []);
+
+  useEffect(() => {
+    if (!handoffFromImage) return;
+
+    let cancelled = false;
+
+    const applyHandoff = async () => {
+      setPrompt(handoffFromImage.prompt);
+      setPurpose((prev) => handoffFromImage.purpose || prev);
+      setError("");
+
+      try {
+        const res = await fetch(handoffFromImage.referenceImageDataUrl);
+        if (!res.ok) {
+          throw new Error("Failed to convert generated image to reference image");
+        }
+
+        const blob = await res.blob();
+        const fallbackName = `generated-reference-${Date.now()}.png`;
+        const fileName = handoffFromImage.referenceImageName || fallbackName;
+        const file = new File([blob], fileName, {
+          type: blob.type || "image/png",
+        });
+
+        if (cancelled) return;
+
+        setImages([
+          {
+            id: `${Date.now()}-${Math.random()}`,
+            file,
+            name: fileNameWithoutExt(fileName),
+          },
+        ]);
+      } catch {
+        if (cancelled) return;
+        setError("Failed to set generated image as video reference image");
+      }
+    };
+
+    applyHandoff();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [handoffFromImage]);
 
   const onUploadImages = (files: FileList | null) => {
     if (!files || files.length === 0) return;

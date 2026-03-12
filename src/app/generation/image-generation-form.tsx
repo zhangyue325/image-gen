@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import GeneratedImagePanel from "./generated-image-panel";
 import ReferenceImageList from "./reference-image-list";
 import { fileNameWithoutExt, fileToBase64 } from "./utils";
-import { UploadItem, DraftPayload, ReferenceImagePayload } from "./types";
+import { UploadItem, DraftPayload, ReferenceImagePayload, VideoHandoffPayload } from "./types";
 
-export default function ImageGenerationForm() {
+type Props = {
+  onMakeVideoFromImage: (payload: VideoHandoffPayload) => void;
+};
+
+export default function ImageGenerationForm({ onMakeVideoFromImage }: Props) {
   const DRAFT_KEY = "generate:draft";
 
   const RATIO_OPTIONS = ["1:1", "2:3", "3:2", "4:5", "5:4", "9:16", "16:9", "21:9"] as const;
@@ -267,6 +271,26 @@ export default function ImageGenerationForm() {
     }
   };
 
+  const onMakeVideo = (index: number) => {
+    const selectedImageUrl = resultImageUrls[index];
+    if (!selectedImageUrl) return;
+
+    const selectedFineTuningPrompt = fineTuningPrompts[index] ?? "";
+    const nextPrompt = selectedFineTuningPrompt.trim() || prompt.trim();
+
+    if (!nextPrompt) {
+      setError("Missing prompt to send to video generation");
+      return;
+    }
+
+    onMakeVideoFromImage({
+      prompt: nextPrompt,
+      purpose,
+      referenceImageDataUrl: selectedImageUrl,
+      referenceImageName: `generated-image-${index + 1}.png`,
+    });
+  };
+
   return (
     <>
       <div className="flex flex-col gap-2">
@@ -408,6 +432,7 @@ export default function ImageGenerationForm() {
         fineTuningLoadingIndex={fineTuningLoadingIndex}
         onDownload={onDownload}
         onFineTune={onFineTune}
+        onMakeVideo={onMakeVideo}
         onChangeFineTuningPrompt={onChangeFineTuningPrompt}
       />
     </>

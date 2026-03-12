@@ -8,6 +8,7 @@ type Props = {
   fineTuningLoadingIndex: number | null;
   onDownload: (index: number) => void;
   onFineTune: (index: number) => void;
+  onMakeVideo: (index: number) => void;
   onChangeFineTuningPrompt: (index: number, next: string) => void;
 };
 
@@ -17,6 +18,7 @@ export default function GeneratedImagePanel({
   fineTuningLoadingIndex,
   onDownload,
   onFineTune,
+  onMakeVideo,
   onChangeFineTuningPrompt,
 }: Props) {
   const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
@@ -64,6 +66,13 @@ export default function GeneratedImagePanel({
                   className="rounded-xl border px-4 py-2 text-sm font-medium"
                 >
                   Download
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onMakeVideo(index)}
+                  className="rounded-xl border px-4 py-2 text-sm font-medium"
+                >
+                  Make a video
                 </button>
                 <button
                   type="button"

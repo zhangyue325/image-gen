@@ -8,6 +8,13 @@ export type DraftPayload = {
     templateId?: number;
   };
 
+export type VideoHandoffPayload = {
+    prompt: string;
+    purpose?: string;
+    referenceImageDataUrl: string;
+    referenceImageName?: string;
+  };
+
 export type UploadItem = {
     id: string;
     file: File;
